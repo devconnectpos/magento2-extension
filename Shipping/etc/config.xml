@@ -1,0 +1,31 @@
+<?xml version="1.0"?>
+<!--
+/**
+ * Copyright © 2016 Magento. All rights reserved.
+ * See COPYING.txt for license details.
+ */
+-->
+<config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Store:etc/config.xsd">
+    <default>
+        <carriers>
+            <retailshipping>
+                <active>1</active>
+                <sallowspecific>0</sallowspecific>
+                <cutoff_cost>50</cutoff_cost>
+                <model>SM\Shipping\Model\Carrier\RetailShipping</model>
+                <name>Connect-POS</name>
+                <title>Store Shipping</title>
+                <specificerrmsg>This shipping method is not available. To use this shipping method, please contact us.</specificerrmsg>
+            </retailshipping>
+            <smstorepickup>
+                <active>1</active>
+                <sallowspecific>0</sallowspecific>
+                <cutoff_cost>50</cutoff_cost>
+                <model>SM\Shipping\Model\Carrier\RetailStorePickUp</model>
+                <name>Retail</name>
+                <title>Retail Store Pick Up</title>
+                <specificerrmsg>This shipping method is not available. To use this shipping method, please contact us.</specificerrmsg>
+            </smstorepickup>
+        </carriers>
+    </default>
+</config>

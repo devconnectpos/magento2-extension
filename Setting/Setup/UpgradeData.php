@@ -34,6 +34,11 @@ class UpgradeData implements UpgradeDataInterface
             $this->dummySelectSeller($setup);
         }
         if (version_compare($context->getVersion(), '0.0.5', '<')) {
+            $this->addUseMagentoRecommendation($setup);
+            $this->addFeaturedProductRecommendation($setup);
+            $this->addOtherSettingSecondScreen($setup);
+        }
+        if (version_compare($context->getVersion(), '0.0.5', '<')) {
             $this->addIntegrateStoreCredit($setup);
         }
 
@@ -43,6 +48,10 @@ class UpgradeData implements UpgradeDataInterface
 
         if (version_compare($context->getVersion(), '0.0.7', '<')) {
             $this->dummySettingVeriface($setup);
+        }
+
+        if (version_compare($context->getVersion(), '0.0.8', '<')) {
+            $this->dummySettingEnableDefaultCategory($setup);
         }
     }
 
@@ -112,6 +121,62 @@ class UpgradeData implements UpgradeDataInterface
         $setup->getConnection()->insertOnDuplicate($configData, $data, ['value']);
     }
 
+    protected function addUseMagentoRecommendation(ModuleDataSetupInterface $setup)
+    {
+        $configData = $setup->getTable('core_config_data');
+        $data = [
+            'path'     => "xretail/pos/use_magento_recommendation",
+            'value'    => 1,
+            'scope'    => 'default',
+            'scope_id' => 0,
+        ];
+        $setup->getConnection()->insertOnDuplicate($configData, $data, ['value']);
+    }
+
+    protected function addFeaturedProductRecommendation(ModuleDataSetupInterface $setup) {
+        $configData = $setup->getTable('core_config_data');
+        $data = [
+            'path'     => "xretail/pos/featured_product_recommendation",
+            'value'    => json_encode([]),
+            'scope'    => 'default',
+            'scope_id' => 0,
+        ];
+        $setup->getConnection()->insertOnDuplicate($configData, $data, ['value']);
+    }
+
+    protected function addOtherSettingSecondScreen(ModuleDataSetupInterface $setup) {
+        $configData  = $setup->getTable('core_config_data');
+        $setup->getConnection()->insertArray(
+            $configData,
+            [
+                'path',
+                'value',
+                'scope',
+                'scope_id'
+            ],
+            [
+                [
+                    'path'     => "xretail/pos/screensaver_mode_after",
+                    'value'    => 0,
+                    'scope'    => 'default',
+                    'scope_id' => 0
+                ],
+                [
+                    'path'     => "xretail/pos/change_screensaver_every",
+                    'value'    => 0,
+                    'scope'    => 'default',
+                    'scope_id' => 0
+                ],
+                [
+                    'path'     => "xretail/pos/picture_video_screensaver",
+                    'value'    => json_encode([]),
+                    'scope'    => 'default',
+                    'scope_id' => 0
+                ]
+            ]
+        );
+    }
+
     protected function addIntegrateStoreCredit(ModuleDataSetupInterface $setup)
     {
         $configData = $setup->getTable('core_config_data');
@@ -169,6 +234,28 @@ class UpgradeData implements UpgradeDataInterface
                 [
                     'path'     => "xretail/pos/veriface_token",
                     'value'    => '',
+                    'scope'    => 'default',
+                    'scope_id' => 0
+                ]
+            ]
+        );
+    }
+
+    protected function dummySettingEnableDefaultCategory(ModuleDataSetupInterface $setup)
+    {
+        $configData  = $setup->getTable('core_config_data');
+        $setup->getConnection()->insertArray(
+            $configData,
+            [
+                'path',
+                'value',
+                'scope',
+                'scope_id'
+            ],
+            [
+                [
+                    'path'     => "xretail/pos/enable_default_category",
+                    'value'    => 0,
                     'scope'    => 'default',
                     'scope_id' => 0
                 ]

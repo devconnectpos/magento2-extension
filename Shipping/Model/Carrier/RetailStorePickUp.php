@@ -21,11 +21,9 @@ use SM\XRetail\Model\ResourceModel\Outlet\CollectionFactory;
  */
 class RetailStorePickUp extends AbstractCarrier implements CarrierInterface
 {
-
     /**
      * @var string
      */
-    protected $_code = 'smstorepickup';
     const METHOD_CODE = 'smstorepickup';
 
     protected $outletCollectionFactory;
@@ -58,6 +56,7 @@ class RetailStorePickUp extends AbstractCarrier implements CarrierInterface
         CollectionFactory $outletCollectionFactory,
         array $data = []
     ) {
+        $this->_code = 'smstorepickup';
         $this->rateResultFactory  = $rateResultFactory;
         $this->rateMethodFactory  = $rateMethodFactory;
         $this->outletCollectionFactory = $outletCollectionFactory;
@@ -70,7 +69,7 @@ class RetailStorePickUp extends AbstractCarrier implements CarrierInterface
      */
     public function getAllowedMethods()
     {
-    $collection = $this->outletCollectionFactory->create();
+        $collection = $this->outletCollectionFactory->create();
         if ($collection->getSize() == 0) {
             return [];
         } else {

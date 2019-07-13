@@ -387,11 +387,13 @@ class CreditmemoManagement extends ServiceAbstract
         } else {
             $shipping = $creditmemo->getShippingAmount();
         }
+        $data['shipping_method']     = $creditmemo->getOrder()->getData('shipping_method');
         $data['shipping_amount']     = $shipping;
         $data['retail_has_shipment'] = $creditmemo->getOrder()->getData('retail_has_shipment');
         $data['total_paid']          = $creditmemo->getOrder()->getData('total_paid');
         $data['total_refunded']      = $creditmemo->getOrder()->getData('total_refunded');
         $data['xRefNum']             = $creditmemo->getOrder()->getData('xRefNum');
+        $data['transId']             = $creditmemo->getOrder()->getData('transId');
 
         return $data;
     }

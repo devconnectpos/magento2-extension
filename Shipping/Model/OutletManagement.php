@@ -30,7 +30,7 @@ class OutletManagement implements OutletManagementInterface
         $collection = $this->collectionFactory->create();
 
         foreach ($collection as $item) {
-            if ($item->getData('allow_click_and_collect') === '1') {
+            if ($item->getData('allow_click_and_collect') === '1' && $item->getData('is_active') === '1') {
                 $result[] = [
                     'id'      => $item->getData('id'),
                     'name'     => $item->getData('name'),

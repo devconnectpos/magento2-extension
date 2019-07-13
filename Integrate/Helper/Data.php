@@ -48,7 +48,8 @@ class Data
         ObjectManagerInterface $objectManager,
         ScopeConfigInterface $scopeConfig,
         ModuleListInterface $moduleList
-    ) {
+    )
+    {
         $this->objectManager = $objectManager;
         $this->scopeConfig   = $scopeConfig;
         $this->moduleList    = $moduleList;
@@ -115,6 +116,11 @@ class Data
     public function isIntegrateWH()
     {
         return !!$this->moduleList->getOne("BoostMyShop_AdvancedStock");
+    }
+
+    public function isMagentoInventory()
+    {
+        return !!$this->moduleList->getOne("Magento_Inventory");
     }
 
     public function isAHWGiftCardxist()

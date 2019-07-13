@@ -31,7 +31,8 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
      */
     public function __construct(
         Registry $registry
-    ) {
+    ) 
+    {
         $this->registry = $registry;
     }
 
@@ -66,6 +67,18 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
         if (!!$retailNote) {
             $quote->setData('retail_note', $retailNote);
             $order->setData('retail_note', $retailNote);
+        }
+
+        $orderRate = $this->registry->registry('order_rate');
+        if (!!$orderRate) {
+            $quote->setData('order_rate', $orderRate);
+            $order->setData('order_rate', $orderRate);
+        }
+
+        $orderFeedback = $this->registry->registry('order_feedback');
+        if (!!$orderFeedback) {
+            $quote->setData('order_feedback', $orderFeedback);
+            $order->setData('order_feedback', $orderFeedback);
         }
 
         $retailStatus = $this->registry->registry('retail_status');
@@ -107,6 +120,12 @@ class SaveRetailDataToOrderAndQuote implements ObserverInterface
         if (!!$pickup_outlet_id) {
             $quote->setData('pickup_outlet_id', $pickup_outlet_id);
             $order->setData('pickup_outlet_id', $pickup_outlet_id);
+        }
+
+        $transId = $this->registry->registry('transId');
+        if (!!$transId) {
+            $quote->setData('transId', $transId);
+            $order->setData('transId', $transId);
         }
     }
 }

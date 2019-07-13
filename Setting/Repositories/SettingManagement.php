@@ -183,6 +183,10 @@ class SettingManagement extends ServiceAbstract
 
                 $config["xretail/pos/integrate_wh"] = "none";
 
+                if (!!$this->integrateHelperData->isMagentoInventory()) {
+                    $config["xretail/pos/integrate_wh"] = "magento_inventory";
+                }
+
                 if (!!$this->integrateHelperData->isIntegrateWH()) {
                     $config["xretail/pos/integrate_wh"] = "bms";
                 }

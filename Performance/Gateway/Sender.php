@@ -74,7 +74,8 @@ class Sender
         LoggerInterface $logger,
         ScopeConfigInterface $scopeConfig,
         EncryptorInterface $encryptor
-    ) {
+    )
+    {
         $this->encryptor       = $encryptor;
         $this->scopeConfig     = $scopeConfig;
         $this->logger          = $logger;

@@ -217,8 +217,9 @@ class OrderHistoryManagement extends ServiceAbstract
                         }
                     }
                 }
-                if ($order->getPayment()->getMethod() == RetailMultiple::PAYMENT_METHOD_RETAILMULTIPLE_CODE) {
+                if ($order->getPayment()->getMethod() == RetailMultiple::PAYMENT_METHOD_RETAILMULTIPLE_CODE || $order->getShippingMethod() === 'smstorepickup_smstorepickup') {
                     $paymentData = json_decode($order->getPayment()->getAdditionalInformation('split_data'), true);
+                    $paymentData = is_array($paymentData) ? $paymentData : [];
                     if (is_array($paymentData)) {
                         $paymentData = array_filter(
                             $paymentData,
@@ -226,6 +227,14 @@ class OrderHistoryManagement extends ServiceAbstract
                                 return is_array($val);
                             }
                         );
+                        if ($order->getShippingMethod() === 'smstorepickup_smstorepickup' && !$order->canInvoice() && $order->getData('is_exchange') != 1) {
+                            array_push($paymentData, [
+                                'title'      => $order->getPayment()->getMethodInstance()->getTitle(),
+                                'amount'     => $order->getTotalPaid(),
+                                'created_at' => $order->getCreatedAt(),
+                                'type'       => $order->getPayment()->getMethodInstance()->getCode()
+                            ]);
+                        }
                         $xOrder->setData('payment', $paymentData);
                     }
                 } else {
@@ -268,7 +277,8 @@ class OrderHistoryManagement extends ServiceAbstract
                     'previous_reward_points_balance'    => floatval($order->getData('previous_reward_points_balance')),
                     'reward_points_redeemed'        => floatval($order->getData('reward_points_redeemed')),
                     'reward_points_earned'          => floatval($order->getData('reward_points_earned')),
-                    'reward_points_refunded'          => floatval($order->getData('reward_points_refunded')),
+                    'reward_points_earned_amount'   => floatval($order->getData('reward_points_earned_amount')),
+                    'reward_points_refunded'        => floatval($order->getData('reward_points_refunded')),
                 ];
 
                 if ($this->integrateHelperData->isIntegrateRP()

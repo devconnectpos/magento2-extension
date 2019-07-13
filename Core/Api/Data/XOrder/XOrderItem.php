@@ -158,4 +158,19 @@ class XOrderItem extends \SM\Core\Api\Data\Contract\ApiDataAbstract {
     {
         return $this->getData('isChildrenCalculated');
     }
+
+    public function getPrice()
+    {
+        return $this->getData('price');
+    }
+
+    public function getTaxAmount()
+    {
+        return $this->getData('tax_amount');
+    }
+
+    public function getPriceInclTax()
+    {
+        return $this->getData('price_incl_tax');
+    }
 }

@@ -126,6 +126,16 @@ class XOrder extends ApiDataAbstract
         return $this->getData('shipping_method');
     }
 
+    public function getOrderRate()
+    {
+        return $this->getData('order_rate');
+    }
+
+    public function getOrderFeedback()
+    {
+        return $this->getData('order_feedback');
+    }
+
     public function getOutletId()
     {
         return $this->getData('outlet_id');
@@ -151,8 +161,23 @@ class XOrder extends ApiDataAbstract
         return $this->getData('reward_points_earned');
     }
 
+    public function getRewardPointsEarnedAmount()
+    {
+        return $this->getData('reward_points_earned_amount');
+    }
+
     public function getRewardPointsRefunded()
     {
         return $this->getData('reward_points_refunded');
+    }
+
+    public function getTransId()
+    {
+        return $this->getData('transId');
+    }
+
+    public function getIsExchange()
+    {
+        return $this->getData('is_exchange');
     }
 }

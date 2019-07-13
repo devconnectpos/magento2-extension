@@ -6,4 +6,5 @@
 
 <config xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="urn:magento:module:Magento_Email:etc/email_templates.xsd">
     <template id="xpos_send_receipt" label="POS send receipt" file="xpos_receipt.html" type="html" module="SM_Email" area="adminhtml"/>
+    <template id="xpos_send_picking" label="POS send picking" file="xpos_picking.html" type="html" module="SM_Email" area="adminhtml"/>
 </config>

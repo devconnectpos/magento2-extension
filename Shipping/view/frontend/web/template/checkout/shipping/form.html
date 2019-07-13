@@ -1,6 +1,6 @@
-<div id="carrier-office-list-wrapper" data-bind="visible: selectedMethod() == 'smstorepickup'">
-    <p data-bind="visible: !showOfficeSelection(), i18n: 'Please provide postcode to see nearest offices'"></p>
-    <div data-bind="visible: showOfficeSelection()">
+<div id="carrier-office-list-wrapper" data-bind="if: selectedMethod() == 'smstorepickup'">
+    <p data-bind="if: !showOfficeSelection(), i18n: 'Please provide postcode to see nearest offices'"></p>
+    <div data-bind="if: showOfficeSelection()">
         <p>
             <span data-bind="i18n: 'Select outlet to pickup'"></span>
         </p>

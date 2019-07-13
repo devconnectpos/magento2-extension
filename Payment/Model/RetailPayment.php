@@ -22,6 +22,7 @@ class RetailPayment extends AbstractModel implements RetailPaymentInterface, Ide
     const CARDKNOX                            = 'cardknox';
     const STORE_CREDIT_PAYMENT_TYPE           = 'store_credit';
     const REFUND_TO_STORE_CREDIT_PAYMENT_TYPE = 'refund_to_store_credit';
+    const EWAY                                = 'eway';
 
     protected function _construct()
     {

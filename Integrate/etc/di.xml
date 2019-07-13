@@ -13,4 +13,13 @@
     <type name="BoostMyShop\OrderPreparation\Observer\SalesOrderShipmentSaveAfter">
         <plugin name="force_order_shipment_process" type="SM\Integrate\Warehouse\Plugin\ForceShipmentProcessing" sortOrder="1" />
     </type>
+    <type name="Magento\InventoryCatalog\Model\BulkSourceAssign">
+        <plugin name="sync_product_assign_source" type="SM\Integrate\Warehouse\Plugin\SyncProductAssignSource" sortOrder="1" />
+    </type>
+    <type name="Magento\InventoryCatalog\Model\BulkSourceUnassign">
+        <plugin name="sync_product_unassign_source" type="SM\Integrate\Warehouse\Plugin\SyncProductUnassignSource" sortOrder="1" />
+    </type>
+    <type name="Magento\InventoryCatalog\Model\BulkInventoryTransfer">
+        <plugin name="sync_product_transfer_source" type="SM\Integrate\Warehouse\Plugin\SyncProductTransferSource" sortOrder="1" />
+    </type>
 </config>

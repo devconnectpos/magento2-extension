@@ -29,6 +29,8 @@ use SM\Payment\Model\RetailMultiple;
 use SM\Payment\Model\RetailPayment;
 use SM\Payment\Model\RetailPaymentFactory;
 use SM\Sales\Model\OrderSyncErrorFactory;
+use SM\Sales\Model\FeedbackFactory;
+use SM\Sales\Model\ResourceModel\Feedback\CollectionFactory as feedbackCollectionFactory;
 use SM\Shift\Helper\Data as ShiftHelper;
 use SM\Shift\Model\RetailTransactionFactory;
 use SM\Shipping\Model\Carrier\RetailShipping;
@@ -37,6 +39,7 @@ use SM\XRetail\Helper\DataConfig;
 use SM\XRetail\Model\UserOrderCounterFactory;
 use SM\XRetail\Repositories\Contract\ServiceAbstract;
 use Magento\Sales\Model\Order;
+use SM\Performance\Helper\RealtimeManager;
 
 /**
  * Class OrderManagement
@@ -148,6 +151,10 @@ class OrderManagement extends ServiceAbstract
      */
     private $orderSyncErrorFactory;
     /**
+     * @var \SM\Sales\Model\FeedbackFactory
+     */
+    private $feedbackFactory;
+    /**
      * @var \SM\Sales\Repositories\OrderHistoryManagement
      */
     private $orderHistoryManagement;
@@ -176,6 +183,11 @@ class OrderManagement extends ServiceAbstract
      * @var \Magento\Sales\Model\ResourceModel\Order\CollectionFactory
      */
     protected $orderCollectionFactory;
+
+    /**
+     * @var \SM\Sales\Model\ResourceModel\Feedback\CollectionFactory
+     */
+    protected $feedbackCollectionFactory;
     /**
      * @var \Magento\Sales\Model\OrderFactory
      */
@@ -197,6 +209,15 @@ class OrderManagement extends ServiceAbstract
      * @var \Magento\Shipping\Model\Shipping
      */
     private $shippingModel;
+    /**
+     * @var \SM\Performance\Helper\RealtimeManager
+     */
+    private $realtimeManager;
+    /**
+     * @var \SM\Integrate\Model\WarehouseIntegrateManagement
+     */
+    private $warehouseIntegrateManagement;
+
 
     /**
      * OrderManagement constructor.
@@ -220,6 +241,8 @@ class OrderManagement extends ServiceAbstract
      * @param \SM\Integrate\Model\StoreCreditIntegrateManagement         $storeCreditIntegrateManagement ,
      * @param \SM\Integrate\Model\GCIntegrateManagement                  $GCIntegrateManagement
      * @param \SM\Sales\Model\OrderSyncErrorFactory                      $orderSyncErrorFactory
+     * @param \SM\Sales\Model\FeedbackFactory                            $feedbackFactory
+     * @param \SM\Sales\Model\ResourceModel\Feedback\CollectionFactory   $feedbackCollectionFactory
      * @param \SM\Sales\Repositories\OrderHistoryManagement              $orderHistoryManagement
      * @param \Magento\Tax\Helper\Data                                   $taxHelper
      * @param \Magento\Sales\Model\ResourceModel\Order\CollectionFactory $collectionFactory
@@ -227,6 +250,8 @@ class OrderManagement extends ServiceAbstract
      * @param \Magento\Sales\Model\OrderFactory                          $orderFactory
      * @param \Magento\Framework\EntityManager\MetadataPool              $metadataPool
      * @param \Magento\Shipping\Model\Shipping                           $shippingModel
+     * @param \SM\Performance\Helper\RealtimeManager                     $realtimeManager
+     * @param \SM\Integrate\Model\WarehouseIntegrateManagement           $warehouseIntegrateManagement
      */
     public function __construct(
         DataConfig $dataConfig,
@@ -248,14 +273,19 @@ class OrderManagement extends ServiceAbstract
         StoreCreditIntegrateManagement $storeCreditIntegrateManagement,
         GCIntegrateManagement $GCIntegrateManagement,
         OrderSyncErrorFactory $orderSyncErrorFactory,
+        FeedbackFactory $feedbackFactory,
+        feedbackCollectionFactory $feedbackCollectionFactory,
         OrderHistoryManagement $orderHistoryManagement,
         TaxHelper $taxHelper,
         CollectionFactory $collectionFactory,
         ResourceConnection $resourceConnection,
         OrderFactory $orderFactory,
         MetadataPool $metadataPool,
-        Shipping $shippingModel
-    ) {
+        Shipping $shippingModel,
+        RealtimeManager $realtimeManager,
+        WarehouseIntegrateManagement $warehouseIntegrateManagement
+    )
+    {
         $this->retailTransactionFactory       = $retailTransactionFactory;
         $this->retailPaymentFactory           = $retailPaymentFactory;
         $this->customerSession                = $customerSession;
@@ -276,11 +306,18 @@ class OrderManagement extends ServiceAbstract
         $this->taxHelper                     = $taxHelper;
         $this->orderCollectionFactory         = $collectionFactory;
         $this->orderFactory                   = $orderFactory;
+        $this->feedbackFactory                = $feedbackFactory;
+        $this->feedbackCollectionFactory      = $feedbackCollectionFactory;
 
         $this->resourceConnection = $resourceConnection;
+        $this->metadataPool = $metadataPool;
+        $this->paymentHelper            = $paymentHelper;
+        $this->realtimeManager = $realtimeManager;
+
         $this->metadataPool       = $metadataPool;
         $this->paymentHelper      = $paymentHelper;
         $this->shippingModel = $shippingModel;
+        $this->warehouseIntegrateManagement = $warehouseIntegrateManagement;
         parent::__construct($context->getRequest(), $dataConfig, $storeManager);
     }
 
@@ -299,11 +336,14 @@ class OrderManagement extends ServiceAbstract
              ->checkRegister()
              ->checkRetailAdditionData()
              ->checkOfflineMode()
-             ->checkIntegrateWh();
+             ->checkIntegrateMagentoInventory()
+             ->checkIntegrateWh()
+             ->checkFeedback();
 
         if ($isSaveOrder === true) {
             $this->checkOrderCount()
-                 ->checkXRefNumCardKnox();
+                 ->checkXRefNumCardKnox()
+                 ->checkTransactionIDAuthorize();
         }
 
         try {
@@ -358,6 +398,17 @@ class OrderManagement extends ServiceAbstract
      */
     public function saveOrder()
     {
+        $retailId = $this->getRequest()->getParam('retail_id');
+        $outletId = $this->getRequest()->getParam('outlet_id');
+        $userId = $this->getRequest()->getParam('user_id');
+        $registerId = $this->getRequest()->getParam('register_id');
+        $customerId = $this->getRequest()->getParam('customer_id');
+        if ($this->getRequest()->getParam('orderOffline')) {
+            $grandTotal = $this->getRequest()->getParam('orderOffline')['totals']['grand_total'];
+            if ($retailId && $this->checkExistedOrder($retailId, $outletId, $registerId, $userId, $customerId, $grandTotal)) {
+                throw new Exception(__('Duplicated order, cannot save!'));
+            }
+        }
         self::$SAVE_ORDER = true;
         $this->loadOrderData(true);
         try {
@@ -386,7 +437,8 @@ class OrderManagement extends ServiceAbstract
 // ship error
                         if ($e->getMessage() === 'Negative quantity is not allowed, stock movement can not be created'
                             || $e->getMessage()
-                               === 'Negative quantity is not allowed') {
+                               === 'Negative quantity is not allowed'
+                            || $e->getMessage() === "Not all of your products are available in the requested quantity.") {
                             self::$MESSAGE_ERROR[] = 'can_not_create_shipment_with_negative_qty';
                         }
                     }
@@ -1016,7 +1068,14 @@ class OrderManagement extends ServiceAbstract
         ];
 
         $data['items'] = $this->orderHistoryManagement->getOrderItemData($address->getAllItems());
-
+        if ($this->integrateHelperData->isIntegrateWH() || $this->integrateHelperData->isMagentoInventory()) {
+            foreach ($data['items'] as $item) {
+                $isSalable = $this->warehouseIntegrateManagement->isSalableQty($item);
+                if (!$isSalable) {
+                    throw new Exception("The requested qty is not available");
+                }
+            }
+        }
         $data['totals'] = array_map(
             function ($number) {
                 if (is_numeric($number)) {
@@ -1402,6 +1461,28 @@ class OrderManagement extends ServiceAbstract
      * @return $this
      * @throws \Exception
      */
+    protected function checkFeedback()
+    {
+        $retailId = $this->getRequest()->getParam('retail_id');
+        $collection = $this->feedbackCollectionFactory->create();
+
+        $collection->addFieldToFilter('retail_id', $retailId);
+        $dataFeedback = $collection->getFirstItem();
+
+        if (!!$dataFeedback->getId()) {
+            $this->registry->unregister('order_feedback');
+            $this->registry->register('order_feedback', $dataFeedback->getData('retail_feedback'));
+            $this->registry->unregister('order_rate');
+            $this->registry->register('order_rate', $dataFeedback->getData('retail_rate'));
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     * @throws \Exception
+     */
     protected function checkRegister()
     {
         // need register id for report
@@ -1427,6 +1508,22 @@ class OrderManagement extends ServiceAbstract
         if (!!$xRefNum) {
             $this->registry->unregister('xRefNum');
             $this->registry->register('xRefNum', $xRefNum);
+        }
+
+        return $this;
+    }
+
+    /**
+     * @return $this
+     * @throws \Exception
+     */
+    protected function checkTransactionIDAuthorize()
+    {
+        // need reference number Authorize for report
+        $transId = $this->getRequest()->getParam('transId');
+        if (!!$transId) {
+            $this->registry->unregister('transId');
+            $this->registry->register('transId', $transId);
         }
 
         return $this;
@@ -1543,6 +1640,15 @@ class OrderManagement extends ServiceAbstract
         return $this;
     }
 
+    protected function checkIntegrateMagentoInventory()
+    {
+        if ($this->integrateHelperData->isMagentoInventory()) {
+            WarehouseIntegrateManagement::setWarehouseId($this->getRequest()->getParam('warehouse_id'));
+        }
+
+        return $this;
+    }
+
     /**
      * @return bool
      */
@@ -1572,10 +1678,38 @@ class OrderManagement extends ServiceAbstract
         return $this->isRefundToGC;
     }
 
+    public function rateOrder()
+    {
+        $data         = $this->getRequest()->getParams();
+        /** @var  \Magento\Sales\Model\ResourceModel\Order\Collection $collection */
+        $collection = $this->orderCollectionFactory->create();
+
+        $collection->addFieldToFilter('retail_id', $data['retailId']);
+        $dataOrder = $collection->getFirstItem();
+
+        if ($dataOrder->getId()) {
+            $dataOrder->setData('order_feedback', $data['noteData']);
+            $dataOrder->setData('order_rate', $data['rateStar']);
+            $dataOrder->save();
+
+            $criteria = new DataObject(['entity_id' => $dataOrder->getEntityId(), 'storeId' => $dataOrder->getStoreId()]);
+            $this->realtimeManager->trigger(RealtimeManager::ORDER_ENTITY, $dataOrder->getId(), RealtimeManager::TYPE_CHANGE_NEW);
+
+            return $this->orderHistoryManagement->loadOrders($criteria);
+        } else {
+            $feedback = $this->feedbackFactory->create();
+            $feedback->setData('retail_id', $data['retailId']);
+            $feedback->setData('retail_feedback', $data['noteData']);
+            $feedback->setData('retail_rate', $data['rateStar']);
+            $feedback->save();
+        }
+    }
+
     /**
      * @param      $order
      * @param null $comment
      */
+
     protected function saveNoteToOrderAlso($order, $comment = null)
     {
         if ($comment != null || $comment = $this->getRequest()->getParam("retail_note")) {
@@ -1663,6 +1797,7 @@ class OrderManagement extends ServiceAbstract
         if ($this->getRequest()->getParam('reward_point')) {
             $reward_point_data = $this->getRequest()->getParam('reward_point');
             $order->setData('reward_points_earned', $reward_point_data['reward_point_earn']);
+            $order->setData('reward_points_earned_amount', $reward_point_data['reward_point_earn_amount']);
             $order->setData('reward_points_redeemed', $reward_point_data['reward_point_spent']);
             $order->setData('previous_reward_points_balance', $reward_point_data['customer_balance']);
             $order->save();
@@ -1677,5 +1812,46 @@ class OrderManagement extends ServiceAbstract
     public static function getAllowedShippingMethods()
     {
         return ['smstorepickup', 'dhl', 'ups', 'usps', 'fedex', 'flatrate', 'tablerate'];
+    }
+
+    protected function checkExistedOrder($retailId, $outletId, $registerId, $userId, $customerId, $grandTotal)
+    {
+        $orderModel = $this->orderCollectionFactory->create();
+        $orderModel->addFieldToFilter('retail_id', array('eq' => $retailId))
+            ->addFieldToFilter('outlet_id', array('eq' => $outletId))
+            ->addFieldToFilter('register_id', array('eq' => $registerId))
+            ->addFieldToFilter('user_id', array('eq' => $userId))
+            ->addFieldToFilter('customer_id', array('eq' => $customerId))
+            ->addFieldToFilter('grand_total', array('eq' => $grandTotal));
+        return $orderModel->getSize() > 0;
+    }
+
+    static function checkClickAndCollectOrderByCode($code) {
+        $code = intval($code);
+        switch ($code) {
+            case OrderManagement::RETAIL_ORDER_EXCHANGE_AWAIT_PICKING:
+            case OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_PICKING:
+            case OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_AWAIT_PICKING:
+            case OrderManagement::RETAIL_ORDER_COMPLETE_AWAIT_PICKING:
+                return "await_picking";
+            case OrderManagement::RETAIL_ORDER_EXCHANGE_PICKING_IN_PROGRESS:
+            case OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_PICKING_IN_PROGRESS:
+            case OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_PICKING_IN_PROGRESS:
+            case OrderManagement::RETAIL_ORDER_COMPLETE_PICKING_IN_PROGRESS:
+                return "picking_in_progress";
+            case OrderManagement::RETAIL_ORDER_EXCHANGE_AWAIT_COLLECTION:
+            case OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_COLLECTION:
+            case OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_AWAIT_COLLECTION:
+            case OrderManagement::RETAIL_ORDER_COMPLETE_AWAIT_COLLECTION:
+                return "await_collection";
+            case OrderManagement::RETAIL_ORDER_EXCHANGE_SHIPPED:
+            case OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_SHIPPED:
+            case OrderManagement::RETAIL_ORDER_COMPLETE_SHIPPED:
+            case OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_SHIPPED:
+            case OrderManagement::RETAIL_ORDER_COMPLETE:
+                return "done_collection";
+            default:
+                return "other_status";
+        }
     }
 }

@@ -118,7 +118,7 @@ class Outlet extends ApiDataAbstract
 
     public function getAllowClickAndCollect()
     {
-        return $this->getData('allow_click_and_collect') == 1;
+        return $this->getData('allow_click_and_collect') === '1';
     }
     public function getCategoryId()
     {

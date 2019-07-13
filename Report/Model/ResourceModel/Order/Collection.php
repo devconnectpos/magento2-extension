@@ -204,7 +204,7 @@ class Collection extends \Magento\Reports\Model\ResourceModel\Order\Collection
 
         $dateRange = $this->getDateRange($range, $customStart, $customEnd);
 
-        $tzRangeOffsetExpression = $this->getTZRangeOffsetExpression(
+        $tzRangeOffsetExpression = $this->_getTZRangeOffsetExpression(
             $range,
             'created_at',
             $dateRange['from'],

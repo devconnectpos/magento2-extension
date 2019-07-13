@@ -10,6 +10,7 @@ namespace SM\Sales\Repositories;
 use Exception;
 use Magento\Config\Model\Config\Loader;
 use Magento\Customer\Model\CustomerFactory;
+use Magento\Framework\App\Config\ScopeConfigInterface;
 use Magento\Framework\App\RequestInterface;
 use Magento\Framework\DataObject;
 use Magento\Framework\Exception\LocalizedException;
@@ -128,7 +129,7 @@ class InvoiceManagement extends ServiceAbstract
         IntegrateHelper $integrateHelper,
         Loader $configLoader,
         CustomerFactory $customerFactory,
-        \Magento\Framework\App\Config\ScopeConfigInterface $scopeConfig
+        ScopeConfigInterface $scopeConfig
     ) {
         $this->orderHistoryManagement   = $orderHistoryManagement;
         $this->orderFactory             = $orderFactory;
@@ -287,9 +288,14 @@ class InvoiceManagement extends ServiceAbstract
                             || (in_array('can_not_create_shipment_with_negative_qty', OrderManagement::$MESSAGE_ERROR))) {
                             if ($order->canShip()) {
                                 if (!$order->getData('is_exchange')) {
+                                    $order->setData('retail_has_shipment', 1);
                                     $order->setData('retail_status', OrderManagement::RETAIL_ORDER_COMPLETE_NOT_SHIPPED);
                                 } else {
-                                    $order->setData('retail_status', OrderManagement::RETAIL_ORDER_EXCHANGE_NOT_SHIPPED);
+                                    if ($order->getShippingMethod() === 'smstorepickup_smstorepickup') {
+                                        $order->setData('retail_status', OrderManagement::RETAIL_ORDER_EXCHANGE_AWAIT_PICKING);
+                                    } else {
+                                        $order->setData('retail_status', OrderManagement::RETAIL_ORDER_EXCHANGE_NOT_SHIPPED);
+                                    }
                                 }
                             } else {
                                 if (!$order->getData('is_exchange')) {
@@ -358,6 +364,42 @@ class InvoiceManagement extends ServiceAbstract
                 $order->save();
             }
         }
+        else if ($order->getShippingMethod() === 'smstorepickup_smstorepickup') {
+            if ($order->hasCreditmemos()) {
+                if ($order->canCreditmemo()) {
+                    $retail_status = $order->getData('retail_status');
+                    $state = OrderManagement::checkClickAndCollectOrderByCode($retail_status);
+                    switch ($state) {
+                        case 'await_picking':
+                            $new_status = OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_PICKING;
+                            break;
+                        case 'picking_in_progress':
+                            $new_status = OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_PICKING_IN_PROGRESS;
+                            break;
+                        case 'await_collection':
+                            $new_status = OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_COLLECTION;
+                            break;
+                        case 'done_collection':
+                            if ($order->canShip()) {
+                                $new_status = OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_NOT_SHIPPED;
+                            } else {
+                                $new_status = OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_SHIPPED;
+                            }
+                            break;
+                        default:
+                            $new_status = $order->getData('retail_status');
+                            break;
+                    }
+                    if (!!$this->getRequest()->getParam('retail_status')) {
+                        $new_status = $this->getRequest()->getParam('retail_status');
+                    }
+                    $order->setData('retail_status', $new_status);
+                } else {
+                    $order->setData('retail_status', OrderManagement::RETAIL_ORDER_FULLY_REFUND);
+                }
+                $order->save();
+            }
+        }
     }
 
 
@@ -387,7 +429,7 @@ class InvoiceManagement extends ServiceAbstract
             }
 
             // If order was created on online/backend so we will not add payment data into it
-            if ($order->getPayment()->getMethod() != RetailMultiple::PAYMENT_METHOD_RETAILMULTIPLE_CODE) {
+            if ($order->getPayment()->getMethod() != RetailMultiple::PAYMENT_METHOD_RETAILMULTIPLE_CODE && $order->getShippingMethod() !== 'smstorepickup_smstorepickup') {
             } else {
                 // save payment information to x-retail payment. It will display in order detail on CPOS
                 $splitData = json_decode($order->getPayment()->getAdditionalInformation('split_data'), true);

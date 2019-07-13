@@ -159,4 +159,9 @@ class Magestore111 extends AbstractWarehouseIntegrate implements WarehouseIntegr
     {
         // TODO: Implement getWarehouseStockItem() method.
     }
+
+    public function isProductSalable($product)
+    {
+       return true;
+    }
 }

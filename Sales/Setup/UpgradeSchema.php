@@ -29,7 +29,8 @@ class UpgradeSchema implements UpgradeSchemaInterface
     public function __construct(
         OrderFactory $orderFactory,
         State $state
-    ) {
+    )
+    {
         $this->orderFactory = $orderFactory;
         try {
             $state->setAreaCode(Area::AREA_FRONTEND);
@@ -63,9 +64,20 @@ class UpgradeSchema implements UpgradeSchemaInterface
         if (version_compare($context->getVersion(), '0.2.5', '<')) {
             $this->addStorePickupOutletIdToQuote($setup);
         }
-
+        if (version_compare($context->getVersion(), '0.2.7', '<')) {
+            $this->addRateOrder($setup);
+        }
+        if (version_compare($context->getVersion(), '0.2.7', '<')) {
+            $this->addFeedback($setup);
+        }
         if (version_compare($context->getVersion(), '0.2.6', '<')) {
             $this->addRewardPointsAndStoreCreditInfoToOrder($setup);
+        }
+        if (version_compare($context->getVersion(), '0.2.8', '<')) {
+            $this->addTransactionIdNumOrderAuthorize($setup);
+        }
+        if (version_compare($context->getVersion(), '0.2.9', '<')) {
+            $this->addRewardPointsEarnAmountToOrder($setup);
         }
     }
 
@@ -478,6 +490,42 @@ class UpgradeSchema implements UpgradeSchemaInterface
     /**
      * @param \Magento\Framework\Setup\SchemaSetupInterface $setup
      */
+    protected function addStorePickupOutletIdToQuote(SchemaSetupInterface $setup)
+    {
+        $upgrader = $setup;
+        $upgrader->getConnection()->dropColumn($upgrader->getTable('quote'), 'pickup_outlet_id');
+        $upgrader->getConnection()->dropColumn($upgrader->getTable('sales_order'), 'pickup_outlet_id');
+        $upgrader->getConnection()->dropColumn($upgrader->getTable('sales_order_grid'), 'pickup_outlet_id');
+
+        $upgrader->getConnection()->addColumn(
+            $upgrader->getTable('quote'),
+            'pickup_outlet_id',
+            [
+                'type'    => Table::TYPE_INTEGER,
+                'comment' => 'Store Pickup Outlet id',
+            ]
+        );
+        $upgrader->getConnection()->addColumn(
+            $upgrader->getTable('sales_order'),
+            'pickup_outlet_id',
+            [
+                'type'    => Table::TYPE_INTEGER,
+                'comment' => 'Store Pickup Outlet id',
+            ]
+        );
+        $upgrader->getConnection()->addColumn(
+            $upgrader->getTable('sales_order_grid'),
+            'pickup_outlet_id',
+            [
+                'type'    => Table::TYPE_INTEGER,
+                'comment' => 'Store Pickup Outlet id',
+            ]
+        );
+    }
+
+    /**
+     * @param \Magento\Framework\Setup\SchemaSetupInterface $setup
+     */
     protected function addCashierUserInOrder(SchemaSetupInterface $setup)
     {
         $installer = $setup;
@@ -519,40 +567,71 @@ class UpgradeSchema implements UpgradeSchemaInterface
         );
     }
 
-    /**
-     * @param \Magento\Framework\Setup\SchemaSetupInterface $setup
-     */
-    protected function addStorePickupOutletIdToQuote(SchemaSetupInterface $setup)
+    protected function addRateOrder(SchemaSetupInterface $setup)
     {
-        $upgrader = $setup;
-        $upgrader->getConnection()->dropColumn($upgrader->getTable('quote'), 'pickup_outlet_id');
-        $upgrader->getConnection()->dropColumn($upgrader->getTable('sales_order'), 'pickup_outlet_id');
-        $upgrader->getConnection()->dropColumn($upgrader->getTable('sales_order_grid'), 'pickup_outlet_id');
+        $installer = $setup;
 
-        $upgrader->getConnection()->addColumn(
-            $upgrader->getTable('quote'),
-            'pickup_outlet_id',
+        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'order_rate')) {
+            $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'order_rate');
+        }
+        $installer->getConnection()->addColumn(
+            $installer->getTable('sales_order'),
+            'order_rate',
             [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Store Pickup Outlet id',
+                'type'    => Table::TYPE_SMALLINT,
+                'comment' => 'Order Rate',
             ]
         );
-        $upgrader->getConnection()->addColumn(
-            $upgrader->getTable('sales_order'),
-            'pickup_outlet_id',
+
+        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'order_feedback')) {
+            $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'order_feedback');
+        }
+        $installer->getConnection()->addColumn(
+            $installer->getTable('sales_order'),
+            'order_feedback',
             [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Store Pickup Outlet id',
+                'type'    => Table::TYPE_TEXT,
+                'comment' => 'Order Feedback',
             ]
         );
-        $upgrader->getConnection()->addColumn(
-            $upgrader->getTable('sales_order_grid'),
-            'pickup_outlet_id',
-            [
-                'type'    => Table::TYPE_INTEGER,
-                'comment' => 'Store Pickup Outlet id',
-            ]
+
+    }
+
+    protected function addFeedback(SchemaSetupInterface $setup)
+    {
+        $installer = $setup;
+        $installer->startSetup();
+        $setup->getConnection()->dropTable($setup->getTable('sm_feedback'));
+        $table = $installer->getConnection()->newTable(
+            $installer->getTable('sm_feedback')
+        )->addColumn(
+            'id',
+            Table::TYPE_INTEGER,
+            null,
+            ['identity' => true, 'nullable' => false, 'primary' => true, 'unsigned' => true,],
+            'Entity ID'
+        )->addColumn(
+            'retail_id',
+            Table::TYPE_TEXT,
+            32,
+            ['nullable' => false],
+            'Retail Id'
+        )->addColumn(
+            'retail_feedback',
+            Table::TYPE_TEXT,
+            null,
+            ['nullable' => true,],
+            'Retail Feedback'
+        )->addColumn(
+            'retail_rate',
+            Table::TYPE_SMALLINT,
+            null,
+            ['nullable' => true,],
+            'Retail Rate'
         );
+        $installer->getConnection()->createTable($table);
+
+        $installer->endSetup();
     }
 
     protected function addRewardPointsAndStoreCreditInfoToOrder(SchemaSetupInterface $setup)
@@ -704,6 +783,89 @@ class UpgradeSchema implements UpgradeSchemaInterface
             [
                 'type'    => Table::TYPE_INTEGER,
                 'comment' => 'Reward Points Refunded',
+            ]
+        );
+    }
+
+    /**
+     * @param \Magento\Framework\Setup\SchemaSetupInterface $setup
+     */
+    protected function addTransactionIdNumOrderAuthorize(SchemaSetupInterface $setup)
+    {
+        $installer = $setup;
+
+        if ($installer->getConnection()->tableColumnExists($installer->getTable('quote'), 'transId')) {
+            $installer->getConnection()->dropColumn($installer->getTable('quote'), 'transId');
+        }
+        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order'), 'transId')) {
+            $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'transId');
+        }
+        if ($installer->getConnection()->tableColumnExists($installer->getTable('sales_order_grid'), 'transId')) {
+            $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'transId');
+        }
+
+        $installer->getConnection()->addColumn(
+            $installer->getTable('quote'),
+            'transId',
+            [
+                'type'    => Table::TYPE_TEXT,
+                'comment' => 'transId',
+            ]
+        );
+        $installer->getConnection()->addColumn(
+            $installer->getTable('sales_order'),
+            'transId',
+            [
+                'type'    => Table::TYPE_TEXT,
+                'comment' => 'transId',
+            ]
+        );
+        $installer->getConnection()->addColumn(
+            $installer->getTable('sales_order_grid'),
+            'transId',
+            [
+                'type'    => Table::TYPE_TEXT,
+                'comment' => 'transId',
+            ]
+        );
+    }
+
+    protected function addRewardPointsEarnAmountToOrder(SchemaSetupInterface $setup)
+    {
+        $installer = $setup;
+
+        $installer->getConnection()->dropColumn($installer->getTable('quote'), 'reward_points_earned_amount');
+        $installer->getConnection()->dropColumn($installer->getTable('sales_order'), 'reward_points_earned_amount');
+        $installer->getConnection()->dropColumn($installer->getTable('sales_order_grid'), 'reward_points_earned_amount');
+
+        $installer->getConnection()->addColumn(
+            $installer->getTable('quote'),
+            'reward_points_earned_amount',
+            [
+                'type'    => Table::TYPE_DECIMAL,
+                'length'   => '12,4',
+                'nullable' => true,
+                'comment' => 'Reward Points Earned Amount',
+            ]
+        );
+        $installer->getConnection()->addColumn(
+            $installer->getTable('sales_order'),
+            'reward_points_earned_amount',
+            [
+                'type'    => Table::TYPE_DECIMAL,
+                'length'   => '12,4',
+                'nullable' => true,
+                'comment' => 'Reward Points Earned Amount',
+            ]
+        );
+        $installer->getConnection()->addColumn(
+            $installer->getTable('sales_order_grid'),
+            'reward_points_earned_amount',
+            [
+                'type'    => Table::TYPE_DECIMAL,
+                'length'   => '12,4',
+                'nullable' => true,
+                'comment' => 'Reward Points Earned Amount',
             ]
         );
     }

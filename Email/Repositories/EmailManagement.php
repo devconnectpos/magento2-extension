@@ -42,9 +42,10 @@ class EmailManagement extends ServiceAbstract
         $template = $this->getRequest()->getParam('template');
         $email    = $this->getRequest()->getParam('email');
         $name     = $this->getRequest()->getParam('name');
+        $tempId   = "xpos_send_receipt";
         $this->storeManager->setCurrentStore($this->getRequest()->getParam('store_id'));
         if (!is_null($template) && !is_null($email) && !is_null($name)) {
-            $this->emailSender->sendReceipt(['template' => $template], ['email' => $email, 'name' => $name]);
+            $this->emailSender->sendEmailOrder(['template' => $template], ['email' => $email, 'name' => $name],null, $tempId);
         } else {
             throw new \Exception("Require param template, email, name");
         }

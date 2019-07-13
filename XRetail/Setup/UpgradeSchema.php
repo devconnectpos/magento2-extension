@@ -14,8 +14,7 @@ use Magento\Framework\Setup\SchemaSetupInterface;
 /**
  * @codeCoverageIgnore
  */
-class UpgradeSchema implements UpgradeSchemaInterface
-{
+class UpgradeSchema implements UpgradeSchemaInterface {
     /**
      * {@inheritdoc}
      */
@@ -60,6 +59,16 @@ class UpgradeSchema implements UpgradeSchemaInterface
         }
         if (version_compare($context->getVersion(), '0.3.0', '<')) {
             $this->addCategoryOutletTable($setup);
+        }
+        if (version_compare($context->getVersion(), '0.3.1', '<')) {
+            $this->modifyColumnWarehouseOutlet($setup);
+        }
+        if (version_compare($context->getVersion(), '0.3.5', '<')) {
+            $this->addMediaLibrary($setup);
+            $this->addAdvertisement($setup);
+        }
+        if (version_compare($context->getVersion(), '0.3.6', '<')) {
+            $this->modifyOutletColumn($setup);
         }
     }
 
@@ -799,7 +808,8 @@ class UpgradeSchema implements UpgradeSchemaInterface
             $installer->getTable('sm_xretail_outlet'),
             'lat',
             [
-                'type' => Table::TYPE_FLOAT,
+                'type' => Table::TYPE_TEXT,
+                'length' => 255000,
                 'nullable' => false,
                 'comment' => 'Latitude Google Map'
             ]
@@ -809,7 +819,8 @@ class UpgradeSchema implements UpgradeSchemaInterface
             $installer->getTable('sm_xretail_outlet'),
             'lng',
             [
-                'type' => Table::TYPE_FLOAT,
+                'type' => Table::TYPE_TEXT,
+                'length' => 255000,
                 'nullable' => false,
                 'comment' => 'Longitude Google Map'
             ]
@@ -828,5 +839,186 @@ class UpgradeSchema implements UpgradeSchemaInterface
         );
 
         $setup->endSetup();
+    }
+
+    protected function modifyColumnWarehouseOutlet(SchemaSetupInterface $setup)
+    {
+        $outletTable = $setup->getTable('sm_xretail_outlet');
+        $setup->startSetup();
+
+        $setup->getConnection()->changeColumn(
+            $setup->getTable($outletTable),
+            'warehouse_id',
+            'warehouse_id',
+            [
+                'type' => Table::TYPE_TEXT,
+                'length' => 255000,
+                ['nullable' => false],
+                'Warehouse ID'
+            ]
+        );
+
+        $setup->endSetup();
+    }
+
+    protected function addMediaLibrary(SchemaSetupInterface $setup)
+    {
+        $installer = $setup;
+        $installer->startSetup();
+        $setup->getConnection()->dropTable($setup->getTable('sm_media_library'));
+        $table = $installer->getConnection()->newTable(
+            $installer->getTable('sm_media_library')
+        )->addColumn(
+            'id',
+            Table::TYPE_INTEGER,
+            null,
+            ['identity' => true, 'nullable' => false, 'primary' => true, 'unsigned' => true,],
+            'Entity ID'
+        )->addColumn(
+            'name',
+            Table::TYPE_TEXT,
+            255,
+            ['nullable' => false],
+            'Demo Title'
+        )->addColumn(
+            'url',
+            Table::TYPE_TEXT,
+            null,
+            ['nullable' => false],
+            'Url'
+        )->addColumn(
+            'type',
+            Table::TYPE_TEXT,
+            null,
+            ['nullable' => false],
+            'Media Type'
+        )->addColumn(
+            'created_at',
+            Table::TYPE_TIMESTAMP,
+            null,
+            ['nullable' => false, 'default' => Table::TIMESTAMP_INIT],
+            'Creation Time'
+        )->addColumn(
+            'updated_at',
+            Table::TYPE_TIMESTAMP,
+            null,
+            ['nullable' => false, 'default' => Table::TIMESTAMP_INIT_UPDATE],
+            'Modification Time'
+        )->addColumn(
+            'is_active',
+            Table::TYPE_SMALLINT,
+            null,
+            ['nullable' => false, 'default' => '1'],
+            'Is Active'
+        );
+        $installer->getConnection()->createTable($table);
+
+        $installer->endSetup();
+    }
+
+    protected function addAdvertisement(SchemaSetupInterface $setup)
+    {
+        $installer = $setup;
+        $installer->startSetup();
+        $setup->getConnection()->dropTable($setup->getTable('sm_advertisement'));
+        $table = $installer->getConnection()->newTable(
+            $installer->getTable('sm_advertisement')
+        )->addColumn(
+            'id',
+            Table::TYPE_INTEGER,
+            null,
+            ['identity' => true, 'nullable' => false, 'primary' => true, 'unsigned' => true],
+            'Entity ID'
+        )->addColumn(
+            'list_media',
+            Table::TYPE_TEXT,
+            null,
+            ['nullable' => false],
+            'List Media'
+        )->addColumn(
+            'name',
+            Table::TYPE_TEXT,
+            255,
+            ['nullable' => false],
+            'Demo Title'
+        )->addColumn(
+            'description',
+            Table::TYPE_TEXT,
+            25500,
+            ['nullable' => true],
+            'Description'
+        )->addColumn(
+            'type',
+            Table::TYPE_TEXT,
+            255,
+            ['nullable' => false],
+            'Type'
+        )->addColumn(
+            'duration',
+            Table::TYPE_INTEGER,
+            null,
+            ['nullable' => true],
+            'Duration'
+        )->addColumn(
+            'priority',
+            Table::TYPE_INTEGER,
+            null,
+            ['nullable' => true],
+            'Priority'
+        )->addColumn(
+            'created_at',
+            Table::TYPE_TIMESTAMP,
+            null,
+            ['nullable' => false, 'default' => Table::TIMESTAMP_INIT],
+            'Creation Time'
+        )->addColumn(
+            'updated_at',
+            Table::TYPE_TIMESTAMP,
+            null,
+            ['nullable' => false, 'default' => Table::TIMESTAMP_INIT_UPDATE],
+            'Modification Time'
+        )->addColumn(
+            'is_active',
+            Table::TYPE_SMALLINT,
+            null,
+            ['nullable' => false, 'default' => '1'],
+            'Is Active'
+        );
+        $installer->getConnection()->createTable($table);
+
+        $installer->endSetup();
+    }
+
+    protected function modifyOutletColumn(SchemaSetupInterface $setup) {
+        $installer = $setup;
+        $installer->startSetup();
+
+        $installer
+            ->getConnection()
+            ->modifyColumn(
+                $installer->getTable('sm_xretail_outlet'),
+                'lat',
+                [
+                    'type'     => Table::TYPE_TEXT,
+                    'length'   => 255000,
+                    'nullable' => false,
+                    'comment'  => 'Latitude Google Map'
+                ]
+            );
+
+        $installer
+            ->getConnection()
+            ->modifyColumn(
+                $installer->getTable('sm_xretail_outlet'),
+                'lng',
+                [
+                    'type'     => Table::TYPE_TEXT,
+                    'length'   => 255000,
+                    'nullable' => false,
+                    'comment'  => 'Longitude Google Map'
+                ]
+            );
+
+        $installer->endSetup();
     }
 }

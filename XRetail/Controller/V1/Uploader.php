@@ -22,8 +22,7 @@ use Magento\PageCache\Model\Config;
  *
  * @package SM\XRetail\Controller\V1
  */
-class Uploader extends Action
-{
+class Uploader extends Action {
 
     /**
      * @var \Magento\MediaStorage\Model\File\UploaderFactory
@@ -54,7 +53,8 @@ class Uploader extends Action
         UploaderFactory $uploaderFactory,
         Filesystem $filesystem,
         Config $config
-    ) {
+    )
+    {
         $this->config          = $config;
         $this->fileSystem      = $filesystem;
         $this->uploaderFactory = $uploaderFactory;
@@ -96,7 +96,7 @@ class Uploader extends Action
                             ->setHttpResponseCode(200);
         } else {
             $fileName = $this->uploadFileAndGetName();
-            $fileName = $this->objectManager->get('Magento\Store\Model\StoreManagerInterface')
+            $fileName = $this->_objectManager->get('Magento\Store\Model\StoreManagerInterface')
                                              ->getStore()
                                              ->getBaseUrl(UrlInterface::URL_TYPE_MEDIA) . 'images/' . $fileName;
 
@@ -121,7 +121,7 @@ class Uploader extends Action
         try {
             $uploader = $this->uploaderFactory->create(['fileId' => 'file']);
             /** test The File with Callback here */
-            $uploader->setAllowedExtensions(['jpg', 'png', 'jpeg']);
+            $uploader->setAllowedExtensions(['jpg', 'png', 'jpeg', 'mp4', 'wmv', 'mov', 'avi', 'flv']);
             $uploader->setAllowRenameFiles(true);
             $uploader->setFilesDispersion(false);
             $uploader->setAllowCreateFolders(true);

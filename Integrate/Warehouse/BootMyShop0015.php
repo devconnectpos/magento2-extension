@@ -92,7 +92,8 @@ class BootMyShop0015 extends AbstractWarehouseIntegrate implements WarehouseInte
                            "physical_quantity"  => "wi_physical_quantity",
                            "available_quantity" => "wi_available_quantity"
                        ]
-                   );
+                   )
+                   ->where("(e.type_id = 'simple'" . " AND " . "warehouse_item.wi_available_quantity > 0) OR e.type_id <> 'simple'");
 
         return $collection;
     }
@@ -272,14 +273,21 @@ class BootMyShop0015 extends AbstractWarehouseIntegrate implements WarehouseInte
                 ]
             )
         )->getFirstItem();
-
+        $product = $this->objectManager->create('Magento\Catalog\Model\Product')->load($productId);
+        $defaultStock = $this->productStock->getStock($product, 0);
         if ($whItem->getData('wi_id')) {
             return [
                 'physical_quantity'  => $whItem->getData("wi_physical_quantity"),
                 'available_quantity' => $whItem->getData("wi_available_quantity"),
+                'is_qty_decimal'     => $defaultStock["is_qty_decimal"],
             ];
         } else {
             return [];
         }
+    }
+
+    public function isProductSalable($product)
+    {
+        return true;
     }
 }

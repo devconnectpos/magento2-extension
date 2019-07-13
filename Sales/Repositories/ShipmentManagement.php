@@ -20,7 +20,8 @@ use Magento\Store\Model\StoreManagerInterface;
 use SM\XRetail\Helper\DataConfig;
 use SM\XRetail\Repositories\Contract\ServiceAbstract;
 use Magento\Sales\Model\Order\Shipment\Validation\QuantityValidator;
-
+use SM\Integrate\Helper\Data;
+use SM\Email\Helper\EmailSender;
 /**
  * Class ShipmentManagement
  *
@@ -56,7 +57,12 @@ class ShipmentManagement extends ServiceAbstract
 
     public static $FROM_API = false;
 
-    // static $CREATE_SHIPMENT = false;
+     static $CREATE_SHIPMENT = false;
+     private $integrateData;
+     /**
+    * @var \SM\Email\Helper\EmailSender
+     */
+    private $emailSender;
 
     /**
      * ShipmentManagement constructor.
@@ -70,6 +76,7 @@ class ShipmentManagement extends ServiceAbstract
      * @param \Magento\Sales\Model\OrderFactory                           $orderFactory
      * @param \SM\Sales\Repositories\InvoiceManagement                    $invoiceManagement
      * @param \SM\Sales\Repositories\OrderHistoryManagement               $orderHistoryManagement
+     * @param \SM\Email\Helper\EmailSender                                $emailSender
      */
     public function __construct(
         RequestInterface $requestInterface,
@@ -80,7 +87,9 @@ class ShipmentManagement extends ServiceAbstract
         ShipmentSender $shipmentSender,
         OrderFactory $orderFactory,
         InvoiceManagement $invoiceManagement,
-        OrderHistoryManagement $orderHistoryManagement
+        OrderHistoryManagement $orderHistoryManagement,
+        Data $integrateData,
+        EmailSender $emailSender
     ) {
         $this->orderFactory           = $orderFactory;
         $this->invoiceManagement      = $invoiceManagement;
@@ -88,6 +97,8 @@ class ShipmentManagement extends ServiceAbstract
         $this->shipmentLoader         = $shipmentLoader;
         $this->objectManager          = $objectManager;
         $this->orderHistoryManagement = $orderHistoryManagement;
+        $this->integrateData          = $integrateData;
+        $this->emailSender            = $emailSender;
         parent::__construct($requestInterface, $dataConfig, $storeManager);
     }
 
@@ -108,7 +119,6 @@ class ShipmentManagement extends ServiceAbstract
         if (!($outletId = $this->getRequest()->getParam('outlet_id'))) {
             throw new Exception("Must have param Outlet Id");
         }
-
         $this->pick($orderId);
         $this->invoiceManagement->invoice($orderId);
         $criteria = new DataObject(
@@ -139,8 +149,16 @@ class ShipmentManagement extends ServiceAbstract
 
         $outletId = $this->getRequest()->getParam('outlet_id');
 
-        $order = $this->ship($orderId);
-        $this->invoiceManagement->checkPayment($order);
+        if ($this->getRequest()->getParam('create_shipment')) {
+            self::$CREATE_SHIPMENT = $this->getRequest()->getParam('create_shipment') == 1;
+        }
+        if (self::$CREATE_SHIPMENT) {
+            $order = $this->ship($orderId);
+            $this->pick($orderId);
+            $this->invoiceManagement->checkPayment($order);
+        } else {
+            $order = $this->pick($orderId);
+        }
 
         $criteria = new DataObject(
             [
@@ -168,7 +186,21 @@ class ShipmentManagement extends ServiceAbstract
         if (!$order->getId()) {
             throw new Exception("Can not find order");
         }
-
+        $arrAwaitCollection = [
+            OrderManagement::RETAIL_ORDER_PARTIALLY_PAID_AWAIT_COLLECTION,
+            OrderManagement::RETAIL_ORDER_COMPLETE_AWAIT_COLLECTION,
+            OrderManagement::RETAIL_ORDER_PARTIALLY_REFUND_AWAIT_COLLECTION,
+            OrderManagement::RETAIL_ORDER_EXCHANGE_AWAIT_COLLECTION
+        ];
+        if (in_array((int)$retail_status,$arrAwaitCollection)) {
+            $template = $this->getRequest()->getParam('template');
+            $email = $order->getShippingAddress()->getEmail();
+            $name = $order->getShippingAddress()->getName();
+            $tempId = "xpos_send_picking";
+            if (!is_null($template) && !is_null($email) && !is_null($name)) {
+                $this->emailSender->sendEmailOrder(['template' => $template], ['email' => $email, 'name' => $name], null, $tempId);
+            }
+        }
         $order->setData('retail_status', $retail_status);
         $order->save();
 
@@ -210,6 +242,11 @@ class ShipmentManagement extends ServiceAbstract
                 );
             }
             $shipment->register();
+            $sourceCode = $this->request->getParam('sourceCode');
+            if (!empty($sourceCode) && $this->integrateData->isMagentoInventory()) {
+                $shipmentExtension = $shipment->getExtensionAttributes();
+                $shipmentExtension->setSourceCode($sourceCode);
+            }
 
             $this->saveShipment($shipment);
 

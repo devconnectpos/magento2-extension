@@ -284,6 +284,7 @@ class SearchResult extends DataObject
         return $this->formatDataOutput(
             [
                 'items'              => $items,
+                'errors'             => $this->getErrors(),
                 'search_criteria'    => $this->getSearchCriteria(),
                 'total_count'        => $this->getTotalCount(),
                 'message_error'      => $this->getMessageError(),
@@ -373,5 +374,25 @@ class SearchResult extends DataObject
             $this->cacheUnderScore[$name] = strtolower(preg_replace('/(.)([A-Z])/', "$1_$2", $name));
         }
         return $this->cacheUnderScore[$name];
+    }
+
+    /**
+     * @return mixed
+     */
+    public function getErrors()
+    {
+        return $this->getData('errors');
+    }
+
+    /**
+     * @param array $errors
+     *
+     * @return $this
+     */
+    public function setErrors(array $errors)
+    {
+        $this->setData('errors', $errors);
+
+        return $this;
     }
 }

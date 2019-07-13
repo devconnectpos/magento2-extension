@@ -161,7 +161,8 @@ class ProductManagement extends ServiceAbstract
         ProductHelper $productHelper,
         ProductImageHelper $productImageHelper,
         Registry $registry
-    ) {
+    )
+    {
         $this->cache                        = $cache;
         $this->catalogProduct               = $catalogProduct;
         $this->productPrice                 = $productPrice;
@@ -189,6 +190,90 @@ class ProductManagement extends ServiceAbstract
     public function getProductData()
     {
         return $this->loadXProducts($this->getSearchCriteria())->getOutput();
+    }
+
+    /**
+     * @return array
+     * @throws \Exception
+     */
+    public function getRelatedProduct() {
+        return $this->loadRelatedProducts($this->getSearchCriteria())->getOutput();
+    }
+
+    /**
+     * @param null $searchCriteria
+     *
+     * @return \SM\Core\Api\SearchResult
+     * @throws \Exception
+     */
+    public function loadRelatedProducts($searchCriteria = null) {
+        if (is_null($searchCriteria) || !$searchCriteria) {
+            $searchCriteria = $this->getSearchCriteria();
+        }
+        WarehouseIntegrateManagement::setWarehouseId(
+            is_null($searchCriteria->getData('warehouse_id'))
+                ? $searchCriteria->getData('warehouseId')
+                : $searchCriteria->getData(
+                'warehouse_id'));
+        $items = [];
+        $storeId    = $this->getStoreManager()->getStore()->getId();
+
+        $productId = $searchCriteria->getData('productId');
+
+        $product = $this->getProductModel()->load($productId);
+
+        $relatedProducts = $product->getRelatedProducts();
+
+        if (!empty($relatedProducts)) {
+            foreach ($relatedProducts as $relatedProduct) {
+                try {
+                    $related = $this->getProductModel()->load($relatedProduct->getId());
+
+                    $items[] = $this->processRelatedProduct($related, $storeId, WarehouseIntegrateManagement::getWarehouseId());
+                }
+                catch (\Exception $e) {
+                }
+            }
+        };
+
+        return $this->getSearchResult()
+                    ->setSearchCriteria($searchCriteria)
+                    ->setItems($items);
+    }
+
+    /**
+     * @param \Magento\Catalog\Model\Product $product
+     * @param                                $storeId
+     * @param                                $warehouseId
+     * @param DataObject                     $item
+     *
+     * @return \SM\Core\Api\Data\XProduct
+     * @throws \Exception
+     */
+    protected function processRelatedProduct(\Magento\Catalog\Model\Product $product, $storeId, $warehouseId)
+    {
+        /** @var \SM\Core\Api\Data\XProduct $xProduct */
+        $xProduct = new XProduct();
+        $xProduct->addData($product->getData());
+
+        $xProduct->setData('store_id', $storeId);
+
+        $xProduct->setData('origin_image', $this->productImageHelper->getImageUrl($product));
+
+        $xProduct->setData('media_gallery', $this->productMediaGalleryImages->getMediaGalleryImages($product));
+
+        // get stock_items
+        if (!$this->integrateData->isIntegrateWH() || !$warehouseId) {
+            $xProduct->setData(
+                'stock_items',
+                $this->getProductStock()->getStock($product, 0));
+        }
+        else {
+            $xProduct->setData(
+                'stock_items',
+                $this->warehouseIntegrateManagement->getStockItem($product, $warehouseId, $product));
+        }
+        return $xProduct;
     }
 
     /**
@@ -334,7 +419,7 @@ class ProductManagement extends ServiceAbstract
         $xProduct->setData('short_description', $product->getShortDescription());
 
         // get stock_items
-        if (!$this->integrateData->isIntegrateWH() || !$warehouseId) {
+        if ((!$this->integrateData->isIntegrateWH() && !$this->integrateData->isMagentoInventory()) || !$warehouseId) {
             $xProduct->setData(
                 'stock_items',
                 $this->getProductStock()->getStock($product, 0)
@@ -395,6 +480,7 @@ class ProductManagement extends ServiceAbstract
         }
         /** @var \Magento\Catalog\Model\ResourceModel\Product\Collection $collection */
         $collection = $this->collectionFactory->create();
+        $collection->setFlag("has_stock_status_filter", true);
         if (!$collection->isEnabledFlat()) {
             $collection->addAttributeToSelect('*');
             $collection->joinAttribute('status', 'catalog_product/status', 'entity_id', null, 'inner');
@@ -425,8 +511,8 @@ class ProductManagement extends ServiceAbstract
             }
             $collection->addFieldToFilter('entity_id', ['in' => explode(",", $ids)]);
         }
-
-        if ($this->integrateData->isIntegrateWH()
+        if (($this->integrateData->isIntegrateWH()
+                || $this->integrateData->isMagentoInventory())
             && ($searchCriteria->getData('warehouse_id')
                 || $searchCriteria->getData('warehouseId'))) {
             if (is_null($searchCriteria->getData('warehouse_id'))) {

@@ -711,4 +711,19 @@ class CustomerManagement extends ServiceAbstract
     {
         return $this->productFactory->create();
     }
+
+    public function saveSub() {
+        $data = $this->getRequestData();
+
+        $email = $data->getData('email');
+        $isSubscribe  = $data->getData('isSubscribe');
+        $checkSubscriber = $this->subscriberFactory->create()->loadByEmail($email);
+        if ($isSubscribe) {
+            $checkSubscriber->subscribe($email);
+        } else {
+            if ($checkSubscriber->getSubscriberId()) {
+                $checkSubscriber->unsubscribe($email);
+            }
+        }
+    }
 }

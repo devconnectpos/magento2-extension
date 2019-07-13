@@ -64,4 +64,11 @@ interface WarehouseIntegrateInterface
      * @return array
      */
     public function getWarehouseStockItem($productId, $warehouseId);
+
+    /**
+     * @param $product
+     *
+     * @return boolean
+     */
+    public function isProductSalable($product);
 }

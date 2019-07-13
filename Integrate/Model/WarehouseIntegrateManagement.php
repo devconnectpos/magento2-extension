@@ -49,6 +49,13 @@ class WarehouseIntegrateManagement extends ServiceAbstract
                     "class"   => "SM\\Integrate\\Warehouse\\Magestore111"
                 ]
             ],
+            'magento_inventory'  => [
+                [
+                    'version' => "~1.0.0",
+                    "class"   => "SM\\Integrate\\Warehouse\\MagentoInventory100"
+                ]
+            ],
+
         ];
     /**
      * @var \SM\Integrate\Warehouse\Contract\WarehouseIntegrateInterface
@@ -96,7 +103,8 @@ class WarehouseIntegrateManagement extends ServiceAbstract
         CollectionFactory $outletCollectionFactory,
         ProductFactory $productFactory,
         ProductStock $productStock
-    ) {
+    )
+    {
         $this->integrateData           = $integrateData;
         $this->objectManager           = $objectManager;
         $this->outletCollectionFactory = $outletCollectionFactory;
@@ -129,7 +137,12 @@ class WarehouseIntegrateManagement extends ServiceAbstract
     {
         if (is_null($this->currentIntegrateModel)) {
             // FIXME: do something to get current integrate class
-            $class = self::$LIST_WH_INTEGRATE['bms'][0]['class'];
+
+            if ($this->integrateData->isMagentoInventory()) {
+                $class = self::$LIST_WH_INTEGRATE['magento_inventory'][0]['class'];
+            } else {
+                $class = self::$LIST_WH_INTEGRATE['bms'][0]['class'];
+            }
 
             $this->currentIntegrateModel = $this->objectManager->create($class);
         }
@@ -177,12 +190,15 @@ class WarehouseIntegrateManagement extends ServiceAbstract
                 )
             )->getFirstItem();
 
-            if ($warehouse->getData("w_id")) {
+            if (!$this->integrateData->isIntegrateWH() && !$this->integrateData->isMagentoInventory()) {
+                continue;
+            }
+            if ($this->integrateData->isIntegrateWH() && $warehouse->getData("w_id")) {
                 $_data = [
-                    "warehouse_name"  => $warehouse->getData("w_name"),
-                    "warehouse_id"    => $warehouse->getData("w_id"),
-                    "outlet_id"       => $outlet->getId(),
-                    "outlet_name"     => $outlet->getName(),
+                    "warehouse_name" => $warehouse->getData("w_name"),
+                    "warehouse_id" => $warehouse->getData("w_id"),
+                    "outlet_id" => $outlet->getId(),
+                    "outlet_name" => $outlet->getName(),
                     "warehouse_stock" => $this->getCurrentIntegrateModel()->getWarehouseStockItem(
                         $this->getSearchCriteria()->getData("entity_id"),
                         $warehouse->getData("w_id")
@@ -190,8 +206,20 @@ class WarehouseIntegrateManagement extends ServiceAbstract
                 ];
 
                 array_push($items, $_data);
-            } else {
                 continue;
+            }
+            if ($this->integrateData->isMagentoInventory() && $warehouse->getData("source_code")) {
+                $_data = [
+                    "warehouse_name" => $warehouse->getData("name"),
+                    "warehouse_id" => $warehouse->getData("source_code"),
+                    "outlet_id" => $outlet->getId(),
+                    "outlet_name" => $outlet->getName(),
+                    "warehouse_stock" => $this->getCurrentIntegrateModel()->getWarehouseStockItem(
+                        $this->getSearchCriteria()->getData("entity_id"),
+                        $warehouse->getData("source_code"))
+                ];
+
+                array_push($items, $_data);
             }
         }
 
@@ -255,7 +283,7 @@ class WarehouseIntegrateManagement extends ServiceAbstract
         $xProduct->setData('store_id', $storeId);
 
         // get stock_items
-        if (!$this->integrateData->isIntegrateWH() || !$warehouseId) {
+        if ((!$this->integrateData->isIntegrateWH() && !$this->integrateData->isMagentoInventory()) || !$warehouseId) {
             $xProduct->setData(
                 'stock_items',
                 $this->getProductStock()->getStock($product, 0)
@@ -309,5 +337,10 @@ class WarehouseIntegrateManagement extends ServiceAbstract
     public function getProductStock()
     {
         return $this->productStock;
+    }
+
+    public function isSalableQty($product)
+    {
+        return $this->getCurrentIntegrateModel()->isProductSalable($product);
     }
 }

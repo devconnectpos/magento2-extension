@@ -52,6 +52,16 @@ class UpgradeSchema implements UpgradeSchemaInterface
         if (version_compare($context->getVersion(), '0.1.7', '<')) {
             $this->addStoreCreditPayment($setup);
         }
+        if (version_compare($context->getVersion(), '0.1.8', '<')) {
+            $this->updateAuthorizeNetPayment($setup);
+        }
+        if (version_compare($context->getVersion(), '0.1.9', '<')) {
+            $this->addEwayPayment($setup);
+        }
+        if (version_compare($context->getVersion(), '0.2.0', '<')) {
+            $this->updatePaymentDataColumnType($setup);
+        }
+        $installer->endSetup();
     }
 
     /**
@@ -392,5 +402,57 @@ class UpgradeSchema implements UpgradeSchemaInterface
                 ],
             ]
         );
+    }
+
+    protected function updateAuthorizeNetPayment(SchemaSetupInterface $setup)
+    {
+        $paymentTable = $setup->getTable('sm_payment');
+        $authorize_net_payment_data = json_encode(['api_login_id' => 'provided by AuthorizeNET', 'transaction_key' => 'provided by AuthorizeNET', 'sandbox_mode' => '0']);
+        $setup->getConnection()->update(
+            $paymentTable,
+            ['payment_data' => $authorize_net_payment_data],
+            ['type = ?'     => "authorize_net"]
+        );
+    }
+
+    protected function addEwayPayment(SchemaSetupInterface $setup)
+    {
+        $paymentTable = $setup->getTable('sm_payment');
+        $setup->getConnection()->insertArray(
+            $paymentTable,
+            [
+                'type',
+                'title',
+                'is_dummy',
+                'payment_data'
+            ],
+            [
+                [
+                    'type'         => RetailPayment::EWAY,
+                    'title'        => "Eway",
+                    'is_dummy'     => 0,
+                    'payment_data' => json_encode(['api_key' => 'provided by Eway', 'api_password' => 'provided by Eway', 'encryption_key' => 'provided by Eway', 'sandbox_mode' => '0'])
+                ],
+            ]
+        );
+    }
+
+    protected function updatePaymentDataColumnType(SchemaSetupInterface $setup)
+    {
+        $paymentTable = $setup->getTable('sm_payment');
+        $installer = $setup;
+
+        $installer
+            ->getConnection()
+            ->modifyColumn(
+                $paymentTable,
+                'payment_data',
+                [
+                    'type'     => Table::TYPE_TEXT,
+                    'length'   => null,
+                    'nullable' => true,
+                    'comment'  => 'Payment Data'
+                ]
+            );
     }
 }

@@ -15,8 +15,7 @@ use SM\XRetail\Model\Api\Configuration;
  *
  * @package SM\XRetail\Controller\V1
  */
-class Xretail extends ApiAbstract
-{
+class Xretail extends ApiAbstract {
     /**
      * @var \SM\XRetail\Auth\Authenticate
      */
@@ -37,7 +36,8 @@ class Xretail extends ApiAbstract
         Configuration $configuration,
         Config $config,
         Authenticate $authenticate
-    ) {
+    )
+    {
         parent::__construct($context, $scopeConfig, $configuration, $config);
         $this->authenticate = $authenticate;
     }

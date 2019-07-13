@@ -145,7 +145,7 @@ class EmailSender extends AbstractHelper
      *
      * @throws \Magento\Framework\Exception\MailException
      */
-    public function sendReceipt($emailTemplateVariables, $receiverInfo, $senderInfo = null)
+    public function sendEmailOrder($emailTemplateVariables, $receiverInfo, $senderInfo = null, $tempId)
     {
         if (is_null($senderInfo)) {
             $transEmail = $this->getConfigValue('trans_email/ident_sales/email', $this->getStore()->getId());
@@ -154,7 +154,7 @@ class EmailSender extends AbstractHelper
                 'name' => $this->getConfigValue('trans_email/ident_sales/name', $this->getStore()->getId())
             );
         }
-        $this->tempId = "xpos_send_receipt";
+        $this->tempId = $tempId;
         $this->generateTemplate($emailTemplateVariables, $senderInfo, $receiverInfo);
         $transport = $this->transportBuilder->getTransport();
         $transport->sendMessage();

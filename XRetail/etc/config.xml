@@ -61,6 +61,11 @@
                     <service>SM\Customer\Repositories\CustomerManagement</service>
                     <function>save</function>
                 </customer>
+                <customer-subscribe>
+                    <method>Post</method>
+                    <service>SM\Customer\Repositories\CustomerManagement</service>
+                    <function>saveSub</function>
+                </customer-subscribe>
                 <customer-address>
                     <method>Post</method>
                     <service>SM\Customer\Repositories\CustomerManagement</service>
@@ -142,6 +147,18 @@
                     <service>SM\Sales\Repositories\OrderManagement</service>
                     <function>updateOrderNote</function>
                 </update-order-note>
+                <!--Update rate Order-->
+                <rate-order>
+                    <method>Post</method>
+                    <service>SM\Sales\Repositories\OrderManagement</service>
+                    <function>rateOrder</function>
+                </rate-order>
+
+                <invoice>
+                    <method>Post</method>
+                    <service>SM\Sales\Repositories\ShipmentManagement</service>
+                    <function>createClickAndCollectInvoice</function>
+                </invoice>
                 <!--Order History-->
                 <order>
                     <method>Get</method>
@@ -227,11 +244,11 @@
                     <service>SM\Wishlist\Repositories\WishlistManagement</service>
                     <function>add</function>
                 </wishlist>
-                <wishlist>
-                    <method>Delete</method>
+                <delete-wishlist>
+                    <method>Post</method>
                     <service>SM\Wishlist\Repositories\WishlistManagement</service>
                     <function>remove</function>
-                </wishlist>
+                </delete-wishlist>
                 <!--Client order count-->
                 <user-order-count>
                     <method>Get</method>
@@ -297,6 +314,13 @@
                     <service>SM\XRetail\Repositories\HealCheck</service>
                     <function>getStatus</function>
                 </healCheck>
+
+                <!--Click n Collect-->
+                <invoice>
+                    <method>Post</method>
+                    <service>SM\Sales\Repositories\ShipmentManagement</service>
+                    <function>createClickAndCollectInvoice</function>
+                </invoice>
 
                 <!--Email-->
                 <send-email>
@@ -384,11 +408,69 @@
                     <function>updateShippingMethods</function>
                 </shipping-methods>
 
+                <!--MediaLibrary-->
+                <media-library>
+                    <method>Get</method>
+                    <service>SM\XRetail\Repositories\MediaLibraryManagement</service>
+                    <function>getMediaLibraryData</function>
+                </media-library>
+                <media-library>
+                    <method>Post</method>
+                    <service>SM\XRetail\Repositories\MediaLibraryManagement</service>
+                    <function>save</function>
+                </media-library>
+                <media-library>
+                    <method>Delete</method>
+                    <service>SM\XRetail\Repositories\MediaLibraryManagement</service>
+                    <function>delete</function>
+                </media-library>
+
+                <related-product>
+                    <method>Get</method>
+                    <service>SM\Product\Repositories\ProductManagement</service>
+                    <function>getRelatedProduct</function>
+                </related-product>
+
+                <!--Advertisement-->
+                <advertisement>
+                    <method>Get</method>
+                    <service>SM\XRetail\Repositories\AdvertisementManagement</service>
+                    <function>getAdvertisementData</function>
+                </advertisement>
+                <advertisement>
+                    <method>Post</method>
+                    <service>SM\XRetail\Repositories\AdvertisementManagement</service>
+                    <function>save</function>
+                </advertisement>
+                <advertisement>
+                    <method>Delete</method>
+                    <service>SM\XRetail\Repositories\AdvertisementManagement</service>
+                    <function>delete</function>
+                </advertisement>
+
+                <!--3rd Payment Gateway-->
+                <process-cardknox>
+                    <method>Post</method>
+                    <service>SM\CardKnox\Repositories\CardKnoxManagement</service>
+                    <function>processCardKnox</function>
+                </process-cardknox>
+
                 <shipping-rates>
                     <method>Post</method>
                     <service>SM\Sales\Repositories\OrderManagement</service>
                     <function>calculateShippingRates</function>
                 </shipping-rates>
+
+                <eway-transaction>
+                    <method>Post</method>
+                    <service>SM\Eway\Repositories\EwayIntegrationManagement</service>
+                    <function>doTransaction</function>
+                </eway-transaction>
+                <eway-refund>
+                    <method>Post</method>
+                    <service>SM\Eway\Repositories\EwayIntegrationManagement</service>
+                    <function>doRefund</function>
+                </eway-refund>
             </router>
         </apirouters>
     </default>
